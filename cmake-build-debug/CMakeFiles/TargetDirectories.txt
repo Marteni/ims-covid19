@@ -1,0 +1,3 @@
+D:/School/IMS/covid-19/cmake-build-debug/CMakeFiles/rebuild_cache.dir
+D:/School/IMS/covid-19/cmake-build-debug/CMakeFiles/covid_19.dir
+D:/School/IMS/covid-19/cmake-build-debug/CMakeFiles/edit_cache.dir

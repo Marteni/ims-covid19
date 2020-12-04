@@ -1,0 +1,3 @@
+"C:\Program Files\JetBrains\CLion 2019.1\bin\cmake\win\bin\cmake.exe" -E rm -f CMakeFiles\covid_19.dir/objects.a
+C:\MinGW\bin\ar.exe cr CMakeFiles\covid_19.dir/objects.a @CMakeFiles\covid_19.dir\objects1.rsp
+C:\MinGW\bin\g++.exe -g   -Wl,--whole-archive CMakeFiles\covid_19.dir/objects.a -Wl,--no-whole-archive  -o covid_19.exe -Wl,--out-implib,libcovid_19.dll.a -Wl,--major-image-version,0,--minor-image-version,0 @CMakeFiles\covid_19.dir\linklibs.rsp
