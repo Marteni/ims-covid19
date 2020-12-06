@@ -310,7 +310,7 @@ public:
 //}
 
 int main(int argc, char* argv[]) {
-	bool local_debugging_enabled = true;
+	bool local_debugging_enabled = false;
 
 	unsigned int number_of_simulation_days = 14;
 
@@ -368,7 +368,7 @@ int main(int argc, char* argv[]) {
 		 * anyone and either stay home or try to get admitted into the hospital to get treatment*/
 		population.IllnessAdvances(local_debugging_enabled);
 
-		population.Report();
+		DEBUG(population.Report(););
 		unsigned int c = population.day-1;
 		Population temp = population;
 		archive[c] = &temp;
