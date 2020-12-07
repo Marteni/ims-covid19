@@ -522,13 +522,18 @@ int main(int argc, char* argv[]) {
 		--number_of_simulation_days;
 	}
 
-	ofstream myfile ("total_sick.dat");
+	ofstream myfile ("data.dat");
 	if (myfile.is_open())
 	{
-		myfile << "# Day Sick_total\n";
+		myfile << "# Day Sick Dead Healthy Asymptomatic Mildly_symptomatic Severely_symptomatic\n";
 		for(unsigned int i = 0; i < population.day; ++i){
 			myfile << archive[i]->day
-			     	<< " " << archive[i]->total_population - archive[i]->dead - (archive[i]->healthy_at_home + archive[i]->healthy_in_public) << "\n";
+					<< " " << archive[i]->total_population - archive[i]->dead - (archive[i]->healthy_at_home + archive[i]->healthy_in_public)
+					<< " " << archive[i]->dead
+				  	<< " " << archive[i]->healthy_at_home + archive[i]->healthy_in_public
+					<< " " << archive[i]->asymptomatic_at_home + archive[i]->asymptomatic_in_public
+					<< " " << archive[i]->ms_at_home + archive[i]->ms_in_public
+					<< " " << archive[i]->ss_waiting_for_bed + archive[i]->ss_in_bed << "\n";
 		}
 		myfile.close();
 	}
