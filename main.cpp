@@ -8,8 +8,8 @@
 
 #include <iostream>
 #include <random>
-#include <cstdlib>
 #include <getopt.h>
+#include <fstream>
 
 using namespace std;
 
@@ -29,7 +29,7 @@ struct probabilities_t {
 	float hospital_recovery = 0.0;
 	float hospital_death = 0.0;
 	float home_recovery = 0.0;
-	float home_death = 0.0;
+	//float home_death = 0.0;
 
 	float post_recovery_paranoia = 0.5;
 } probability_of;
@@ -80,7 +80,7 @@ public:
 		// Get people that are infectious, but don't know it yet (still within incubation period)
 		for (unsigned int i = this->is_infectious_since_day; i <= this->incubation_period; i++){
 			available_infectious += incubating[i];
-			DEBUG(cout << "I|  Incubated for " << i << " days: " << incubating[i] << endl;);
+			DEBUG(cout << "I|  Incubated for " << i+1 << " days: " << incubating[i] << endl;);
 		}
 		// Get people knowingly going around sick
 		available_mildly_infectious = this->ms_in_public;
@@ -128,10 +128,18 @@ public:
 					// have a chance to affect all healthy people
 					while (present_healthy) {
 						if (percentageFraction() <= probability_of.getting_sick) {
-							--this->healthy_in_public;
-							++this->asymptomatic_in_public;
-							++incubating[0];
-							DEBUG(cout << "I|   - Became asymptomatic" << endl;);
+							DEBUG(cout << "I|   - Became asymptomatic";);
+							if (percentageFraction() <= probability_of.healthy_staying_home) {
+								--this->healthy_in_public;
+								++this->asymptomatic_at_home;
+								DEBUG(cout << " and is going home" << endl;);
+							}
+							else{
+								--this->healthy_in_public;
+								++this->asymptomatic_in_public;
+								++incubating[0];
+								DEBUG(cout << " and is staying in public and incubating" << endl;);
+							}
 						}
 						else {
 							// If they get scared after finding out that
@@ -147,12 +155,13 @@ public:
 						--present_healthy;
 					}
 				}
-				DEBUG(cout << "I| -- Unevaluated people left: " << available << " of which healthy: " << available - (available_infectious + available_mildly_infectious) << " --" << endl;);
+				DEBUG(cout << "I| -- Unevaluated people left: " << available << " of which healthy: " << available - (available_infectious + available_mildly_infectious) + 1 << " --" << endl;);
 			}
 			else { available = 0; }
 			++x;
 		}
 
+		DEBUG(cout << " \\----------------" << endl;);
 		local_debug_out_enabled ? debugging_enabled = false : debugging_enabled = true;
 	}
 
@@ -213,6 +222,7 @@ public:
 			this->available_hospital_beds = 0;
 		}
 
+		DEBUG(cout << " \\----------------" << endl;);
 		local_debug_out_enabled ? debugging_enabled = false : debugging_enabled = true;
 	}
 
@@ -227,23 +237,35 @@ public:
 			if(fate <= probability_of.home_recovery){
 				--this->ms_at_home;
 				++this->healthy_in_public;
-				DEBUG(cout << "Q| - Person " << i << " has recovered and returns to public." << endl;);
+				DEBUG(cout << "Q| - Mildly symptomatic " << i << " has recovered and returns to public." << endl;);
 			}
-			// Person dies at home
-			else if(probability_of.home_recovery < fate
-					&& fate <= (probability_of.home_recovery + probability_of.home_death)){
-				--this->ms_at_home;
-				++this->dead;
-				DEBUG(cout << "Q| - Person " << i << " has died in home quarrantine." << endl;);
-			}
-			// Person's status has worsened and needs medical attention
+				// Person's status has worsened and needs medical attention
 			else{
 				--this->ms_at_home;
 				++this->ss_waiting_for_bed;
-				DEBUG(cout << "Q| - Person " << i << " needs medical attention and is now waiting for a hospital bed." << endl;);
+				DEBUG(cout << "Q| - Mildly symptomatic " << i
+							<< " needs medical attention and is now waiting for a hospital bed." << endl;);
+			}
+		}
+		for (unsigned int i = 1; i <= this->asymptomatic_at_home; ++i) {
+			float fate = percentageFraction();
+
+			// Person recovers at home an returns into public
+			if (fate <= probability_of.home_recovery) {
+				--this->asymptomatic_at_home;
+				++this->healthy_in_public;
+				DEBUG(cout << "Q| - Asymptomatic " << i << " has recovered and returns to public." << endl;);
+			}
+			// Person's status has worsened and needs medical attention
+			else {
+				--this->asymptomatic_at_home;
+				++this->ss_waiting_for_bed;
+				DEBUG(cout << "Q| - Asymptomatic " << i
+						   << " needs medical attention and is now waiting for a hospital bed." << endl;);
 			}
 		}
 
+		DEBUG(cout << " \\----------------" << endl;);
 		local_debug_out_enabled ? debugging_enabled = false : debugging_enabled = true;
 	}
 
@@ -253,14 +275,34 @@ public:
 		unsigned int past_incubation_period = incubating[this->incubation_period];
 
 		DEBUG(cout << "Illness advancing events: " << endl;);
+
+		// Possibly advance mildly symptomatic people in public to severely symptomatic and send them to hospital
+		unsigned int mildly_symptomatic = this->ms_in_public;
+		this->ms_in_public = 0;
+		DEBUG(cout << "A| Mildly symptomatic for reevaluation: " << mildly_symptomatic << endl;);
+		while (mildly_symptomatic){
+			if(percentageFraction() <= probability_of.mild_symptoms){ // Gain mild symptoms
+				DEBUG(cout << "A|  Got mild symptoms - At home/In public " << this->ms_at_home << "/" << this->ms_in_public << " => ";);
+				(percentageFraction() <= probability_of.ms_staying_home) ? ++this->ms_at_home : ++this->ms_in_public;
+				DEBUG(cout << this->ms_at_home << "/" << this->ms_in_public << endl;);
+			}
+			else { // Gain severe symptoms that require hospitalization
+				DEBUG(cout << "A|  Got severe symptoms and is now waiting for a hospital bed." << endl;);
+				++this->ss_waiting_for_bed;
+			}
+
+			--mildly_symptomatic;
+		}
+
 		// Advance asymptotic incubating one day forward
-		DEBUG(cout << "A| | " << incubating[0] << " | " << incubating[1] << " | " << incubating[2] << " | " << incubating[3] << " | " << incubating[4] << " | " << incubating[5] << " | " << incubating[6] << " | " << incubating[7] << " | " << incubating[8] << " | " << incubating[9] << " |" << endl;);
+		DEBUG(cout << "A| Incubating:"<< endl;);
+		DEBUG(cout << "A|  | "; for (unsigned int a = 0; a <= this->incubation_period; ++a) { cout << incubating[a] << " | "; } cout << endl;);
 		for(unsigned int i = this->incubation_period; i >= 1; --i){
 			incubating[i] = incubating[i - 1];
-			DEBUG(cout << "A| | " << incubating[0] << " | " << incubating[1] << " | " << incubating[2] << " | " << incubating[3] << " | " << incubating[4] << " | " << incubating[5] << " | " << incubating[6] << " | " << incubating[7] << " | " << incubating[8] << " | " << incubating[9] << " |" << endl;);
+			DEBUG(cout << "A|  | "; for (unsigned int a = 0; a <= this->incubation_period; ++a) { cout << incubating[a] << " | "; } cout << endl;);
 		}
 		incubating[0] = 0;
-		DEBUG(cout << "A| | " << incubating[0] << " | " << incubating[1] << " | " << incubating[2] << " | " << incubating[3] << " | " << incubating[4] << " | " << incubating[5] << " | " << incubating[6] << " | " << incubating[7] << " | " << incubating[8] << " | " << incubating[9] << " |" << endl;);
+		DEBUG(cout << "A|  | "; for (unsigned int a = 0; a <= this->incubation_period; ++a) { cout << incubating[a] << " | "; } cout << endl;);
 
 		// Process people newly past the incubation period
 		this->asymptomatic_in_public -= past_incubation_period;
@@ -280,6 +322,7 @@ public:
 			--past_incubation_period;
 		}
 
+		DEBUG(cout << " \\----------------" << endl;);
 		local_debug_out_enabled ? debugging_enabled = false : debugging_enabled = true;
 	}
 
@@ -305,49 +348,150 @@ public:
 
 };
 
-//void parseArguments(int argc, char* argv[]){
-
-//}
-
 int main(int argc, char* argv[]) {
 	bool local_debugging_enabled = false;
 
-	unsigned int number_of_simulation_days = 14;
+	unsigned int number_of_simulation_days = 100;
 
-	unsigned int total_population = 500;
-	unsigned int initial_number_of_sick = 10; // Number of patients 0
-	unsigned int incubation_period = 10; // Number of days before symptoms appear
-	unsigned int is_infectious_since_day = 1; // On which incubation day the person becomes infectious
-	unsigned int average_daily_interactions = 12; // Size of the daily interaction circle
-	unsigned int hospital_capacity = 500; // Number of total available hospital beds
+	unsigned int total_population = 500000;
+	unsigned int initial_number_of_sick = 150; // Number of patients 0
+	unsigned int incubation_period = 5; // Number of days before symptoms appear
+	unsigned int is_infectious_since_day = 4; // On which incubation day the person becomes infectious
+	unsigned int average_daily_interactions = 200; // Size of the daily interaction circle
+	unsigned int hospital_capacity = 50000; // Number of total available hospital beds
 
 	incubating = new unsigned int[incubation_period];
 	incubating[0] = initial_number_of_sick;
-	for (int i = 1; i <= incubation_period; i++){
+	for (unsigned int i = 1; i < incubation_period; i++){
 		incubating[i] = 0;
 	}
-	Population* archive[number_of_simulation_days+1];
+	const unsigned int n_of_sim_days = number_of_simulation_days;
+	Population* archive[n_of_sim_days];
 
-	probability_of.getting_sick = 0.25;	// Chance of catching it from an infectious person they met
+	probability_of.getting_sick = 0.10;	// Chance of catching it from an infectious person they met
 	probability_of.healthy_staying_home = 0.05; // Chance of prevention by self quarantine
-	probability_of.mild_symptoms = 0.70; // Chance of developing mild symptoms after passing the incubation period (Leaving 30% chance to develop severe symptoms)
-	probability_of.ms_staying_home = 0.25; // Chance of self quarantine after developing mild symptoms (Leaving 75% chance of staying in public)
+	probability_of.mild_symptoms = 0.80; // Chance of developing mild symptoms after passing the incubation period (Leaving 20% chance to develop severe symptoms)
+	probability_of.ms_staying_home = 0.50; // Chance of self quarantine after developing mild symptoms (Leaving 50% chance of staying in public)
 
-	probability_of.hospital_recovery = 0.75;
+	probability_of.hospital_recovery = 0.90;
 	probability_of.hospital_death = 0.05;
 	// Leaving 20% chance to stay in hospital for another day
 
-	probability_of.home_recovery = 0.50;
-	probability_of.home_death = 0.10;
-	// Leaving 40% chance of needing hospitalization
+	probability_of.home_recovery = 0.60;
+	// Leaving 60% chance of needing hospitalization
 
-	probability_of.post_recovery_paranoia = 0.45; // Chance of self quarantine after overcoming the illness
+	probability_of.post_recovery_paranoia = 0.10; // Chance of self quarantine after overcoming the illness
+/*
+	const option long_opts[] = {
+			{"simDays", required_argument, nullptr, 'a'},
+			{"population", required_argument, nullptr, 'b'},
+			{"initSick", required_argument, nullptr, 'c'},
+			{"incubPeriod", required_argument, nullptr, 'd'},
+			{"infectSince", required_argument, nullptr, 'e'},
+			{"avgDailyInter", required_argument, nullptr, 'f'},
+			{"hospCap", required_argument, nullptr, 'g'},
+			{"help", no_argument, nullptr, 'h'},
+			{"CgetSick", required_argument, nullptr, 'q'},
+			{"ChealthyAtHome", required_argument, nullptr, 'i'},
+			{"CmildSympt", required_argument, nullptr, 'j'},
+			{"CmildSymAtHome", required_argument, nullptr, 'k'},
+			{"ChospitalRec", required_argument, nullptr, 'l'},
+			{"ChospitalDeath", required_argument, nullptr, 'm'},
+			{"ChomeRec", required_argument, nullptr, 'n'},
+			{"ChomeDeath", required_argument, nullptr, 'o'},
+			{"Cprp", required_argument, nullptr, 'p'},
+			{nullptr, no_argument, nullptr, 0}
+	};
 
+	while (true)
+	{
+		const auto opt = getopt_long(argc, argv, nullptr, long_opts, nullptr);
+
+		if (-1 == opt)
+			break;
+
+		switch (opt)
+		{
+			case 'a':
+				number_of_simulation_days = std::stoi(optarg);
+				DEBUG(std::cout << "Number of simulation days set to: " << number_of_simulation_days << std::endl;);
+				break;
+			case 'b':
+				total_population = std::stoi(optarg);
+				DEBUG(std::cout << "Total population set to: " << total_population << std::endl;);
+				break;
+			case 'c':
+				initial_number_of_sick = std::stoi(optarg);
+				DEBUG(std::cout << "Number of simulation days set to: " << initial_number_of_sick << std::endl;);
+				break;
+			case 'd':
+				incubation_period = std::stoi(optarg);
+				DEBUG(std::cout << "Number of simulation days set to: " << incubation_period << std::endl;);
+				break;
+			case 'e':
+				is_infectious_since_day = std::stoi(optarg);
+				DEBUG(std::cout << "Number of simulation days set to: " << is_infectious_since_day << std::endl;);
+				break;
+			case 'f':
+				average_daily_interactions = std::stoi(optarg);
+				DEBUG(std::cout << "Number of simulation days set to: " << average_daily_interactions << std::endl;);
+				break;
+			case 'g':
+				hospital_capacity = std::stoi(optarg);
+				DEBUG(std::cout << "Number of simulation days set to: " << hospital_capacity << std::endl;);
+				break;
+			case 'q':
+				probability_of.getting_sick = std::stoi(optarg);
+				DEBUG(std::cout << "Number of simulation days set to: " << probability_of.getting_sick << std::endl;);
+				break;
+			case 'i':
+				probability_of.healthy_staying_home = std::stoi(optarg);
+				DEBUG(std::cout << "Number of simulation days set to: " << probability_of.healthy_staying_home << std::endl;);
+				break;
+			case 'j':
+				probability_of.mild_symptoms = std::stoi(optarg);
+				DEBUG(std::cout << "Number of simulation days set to: " << probability_of.mild_symptoms << std::endl;);
+				break;
+			case 'k':
+				probability_of.ms_staying_home = std::stoi(optarg);
+				DEBUG(std::cout << "Number of simulation days set to: " << probability_of.ms_staying_home << std::endl;);
+				break;
+			case 'l':
+				probability_of.hospital_recovery = std::stoi(optarg);
+				DEBUG(std::cout << "Number of simulation days set to: " << probability_of.hospital_recovery << std::endl;);
+				break;
+			case 'm':
+				probability_of.hospital_death = std::stoi(optarg);
+				DEBUG(std::cout << "Number of simulation days set to: " << probability_of.hospital_death << std::endl;);
+				break;
+			case 'n':
+				probability_of.home_recovery = std::stoi(optarg);
+				DEBUG(std::cout << "Number of simulation days set to: " << probability_of.home_recovery << std::endl;);
+				break;
+			case 'o':
+				probability_of.home_death = std::stoi(optarg);
+				DEBUG(std::cout << "Number of simulation days set to: " << probability_of.home_death << std::endl;);
+				break;
+			case 'p':
+				probability_of.post_recovery_paranoia = std::stoi(optarg);
+				DEBUG(std::cout << "Number of simulation days set to: " << probability_of.post_recovery_paranoia << std::endl;);
+				break;
+			case 'h': // -h or --help
+			case '?': // Unrecognized option
+			default:
+				//PrintHelp();
+				cout << "Help message placeholder" << endl;
+				break;
+		}
+	}
+*/
 	Population population = Population(total_population, incubation_period, initial_number_of_sick,
 									   is_infectious_since_day, average_daily_interactions, hospital_capacity);
-	population.day = 1;
+	population.day = 0;
 
 	while(number_of_simulation_days) {
+		++population.day;
+		debugging_enabled = local_debugging_enabled;
 		DEBUG(cout << "----- DAY " << population.day << " -----" << endl;);
 		population.CalculateInteractions(local_debugging_enabled);
 
@@ -368,14 +512,28 @@ int main(int argc, char* argv[]) {
 		 * anyone and either stay home or try to get admitted into the hospital to get treatment*/
 		population.IllnessAdvances(local_debugging_enabled);
 
+
+		debugging_enabled = local_debugging_enabled;
 		DEBUG(population.Report(););
 		unsigned int c = population.day-1;
 		Population temp = population;
-		archive[c] = &temp;
-		++population.day;
+		archive[c] = new Population(0,0,0,0,0,0);
+		*archive[c] = population;
 		--number_of_simulation_days;
 	}
 
-	archive[number_of_simulation_days]->Report();
+	ofstream myfile ("total_sick.dat");
+	if (myfile.is_open())
+	{
+		myfile << "# Day Sick_total\n";
+		for(unsigned int i = 0; i < population.day; ++i){
+			myfile << archive[i]->day
+			     	<< " " << archive[i]->total_population - archive[i]->dead - (archive[i]->healthy_at_home + archive[i]->healthy_in_public) << "\n";
+		}
+		myfile.close();
+	}
+	else cout << "Unable to open file";
+
+	population.Report();
 	return 0;
 }
