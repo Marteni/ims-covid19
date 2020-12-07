@@ -39,6 +39,13 @@ float percentageFraction(){
    return (float)(min(rand() % 10001, 10000))/(float)10000;
 }
 
+bool is_number(const std::string& s)
+{
+	std::string::const_iterator it = s.begin();
+	while (it != s.end() && std::isdigit(*it)) ++it;
+	return !s.empty() && it == s.end();
+}
+
 class Population {
 public:
 	unsigned int day;
@@ -381,7 +388,7 @@ int main(int argc, char* argv[]) {
 	// Leaving 60% chance of needing hospitalization
 
 	probability_of.post_recovery_paranoia = 0.10; // Chance of self quarantine after overcoming the illness
-/*
+
 	const option long_opts[] = {
 			{"simDays", required_argument, nullptr, 'a'},
 			{"population", required_argument, nullptr, 'b'},
@@ -390,7 +397,6 @@ int main(int argc, char* argv[]) {
 			{"infectSince", required_argument, nullptr, 'e'},
 			{"avgDailyInter", required_argument, nullptr, 'f'},
 			{"hospCap", required_argument, nullptr, 'g'},
-			{"help", no_argument, nullptr, 'h'},
 			{"CgetSick", required_argument, nullptr, 'q'},
 			{"ChealthyAtHome", required_argument, nullptr, 'i'},
 			{"CmildSympt", required_argument, nullptr, 'j'},
@@ -398,93 +404,91 @@ int main(int argc, char* argv[]) {
 			{"ChospitalRec", required_argument, nullptr, 'l'},
 			{"ChospitalDeath", required_argument, nullptr, 'm'},
 			{"ChomeRec", required_argument, nullptr, 'n'},
-			{"ChomeDeath", required_argument, nullptr, 'o'},
 			{"Cprp", required_argument, nullptr, 'p'},
-			{nullptr, no_argument, nullptr, 0}
+			{"help", no_argument, nullptr, 'h'},
+			{0, no_argument, 0, 0}
 	};
-
+	
+	local_debugging_enabled ? debugging_enabled = true : debugging_enabled = false;
 	while (true)
 	{
-		const auto opt = getopt_long(argc, argv, nullptr, long_opts, nullptr);
+		const auto opt = getopt_long_only(argc, argv, "", long_opts, nullptr);
 
-		if (-1 == opt)
+		if (opt == -1)
 			break;
 
 		switch (opt)
 		{
 			case 'a':
-				number_of_simulation_days = std::stoi(optarg);
-				DEBUG(std::cout << "Number of simulation days set to: " << number_of_simulation_days << std::endl;);
+				number_of_simulation_days = std::stoul(optarg);
+				DEBUG(std::cout << "Number of simulation days set to: " << number_of_simulation_days << endl;);
 				break;
 			case 'b':
-				total_population = std::stoi(optarg);
-				DEBUG(std::cout << "Total population set to: " << total_population << std::endl;);
+				total_population = std::stoul(optarg);
+				DEBUG(std::cout << "Total population set to: " << total_population << endl;);
 				break;
 			case 'c':
-				initial_number_of_sick = std::stoi(optarg);
-				DEBUG(std::cout << "Number of simulation days set to: " << initial_number_of_sick << std::endl;);
+				initial_number_of_sick = std::stoul(optarg);
+				DEBUG(std::cout << "Initial number of sick set to: " << initial_number_of_sick << std::endl;);
 				break;
 			case 'd':
-				incubation_period = std::stoi(optarg);
-				DEBUG(std::cout << "Number of simulation days set to: " << incubation_period << std::endl;);
+				incubation_period = std::stoul(optarg);
+				DEBUG(std::cout << "Incubation period set to: " << incubation_period << std::endl;);
 				break;
 			case 'e':
-				is_infectious_since_day = std::stoi(optarg);
-				DEBUG(std::cout << "Number of simulation days set to: " << is_infectious_since_day << std::endl;);
+				is_infectious_since_day = std::stoul(optarg);
+				DEBUG(std::cout << "Infectious since day X set to: " << is_infectious_since_day << std::endl;);
 				break;
 			case 'f':
-				average_daily_interactions = std::stoi(optarg);
-				DEBUG(std::cout << "Number of simulation days set to: " << average_daily_interactions << std::endl;);
+				average_daily_interactions = std::stoul(optarg);
+				DEBUG(std::cout << "Average daily interactions set to: " << average_daily_interactions << std::endl;);
 				break;
 			case 'g':
-				hospital_capacity = std::stoi(optarg);
-				DEBUG(std::cout << "Number of simulation days set to: " << hospital_capacity << std::endl;);
+				hospital_capacity = std::stoul(optarg);
+				DEBUG(std::cout << "Hospital bed capacity set to: " << hospital_capacity << std::endl;);
 				break;
 			case 'q':
-				probability_of.getting_sick = std::stoi(optarg);
-				DEBUG(std::cout << "Number of simulation days set to: " << probability_of.getting_sick << std::endl;);
+				probability_of.getting_sick = (float)(std::stoi(optarg))/100;
+				DEBUG(std::cout << "Probability of getting sick set to: " << probability_of.getting_sick*100 << "%" << std::endl;);
 				break;
 			case 'i':
-				probability_of.healthy_staying_home = std::stoi(optarg);
-				DEBUG(std::cout << "Number of simulation days set to: " << probability_of.healthy_staying_home << std::endl;);
+				probability_of.healthy_staying_home = (float)(std::stoi(optarg))/100;
+				DEBUG(std::cout << "Probability of healthy people isolating set to: " << probability_of.healthy_staying_home*100 << "%" << std::endl;);
 				break;
 			case 'j':
-				probability_of.mild_symptoms = std::stoi(optarg);
-				DEBUG(std::cout << "Number of simulation days set to: " << probability_of.mild_symptoms << std::endl;);
+				probability_of.mild_symptoms = (float)(std::stoi(optarg))/100;
+				DEBUG(std::cout << "Probability of developing mild symptoms set to: " << probability_of.mild_symptoms*100 << "%" << std::endl;);
 				break;
 			case 'k':
-				probability_of.ms_staying_home = std::stoi(optarg);
-				DEBUG(std::cout << "Number of simulation days set to: " << probability_of.ms_staying_home << std::endl;);
+				probability_of.ms_staying_home = (float)(std::stoi(optarg))/100;
+				DEBUG(std::cout << "Probability of staying home when having mild symptoms set to: " << probability_of.ms_staying_home*100 << "%" << std::endl;);
 				break;
 			case 'l':
-				probability_of.hospital_recovery = std::stoi(optarg);
-				DEBUG(std::cout << "Number of simulation days set to: " << probability_of.hospital_recovery << std::endl;);
+				probability_of.hospital_recovery = (float)(std::stoi(optarg))/100;
+				DEBUG(std::cout << "Probability of recovery when hospitalized set to: " << probability_of.hospital_recovery*100 << "%" << std::endl;);
 				break;
 			case 'm':
-				probability_of.hospital_death = std::stoi(optarg);
-				DEBUG(std::cout << "Number of simulation days set to: " << probability_of.hospital_death << std::endl;);
+				probability_of.hospital_death = (float)(std::stoi(optarg))/100;
+				DEBUG(std::cout << "Probability of dying when hospitalized set to: " << probability_of.hospital_death*100 << "%" << std::endl;);
 				break;
 			case 'n':
-				probability_of.home_recovery = std::stoi(optarg);
-				DEBUG(std::cout << "Number of simulation days set to: " << probability_of.home_recovery << std::endl;);
-				break;
-			case 'o':
-				probability_of.home_death = std::stoi(optarg);
-				DEBUG(std::cout << "Number of simulation days set to: " << probability_of.home_death << std::endl;);
+				probability_of.home_recovery = (float)(std::stoi(optarg))/100;
+				DEBUG(std::cout << "Probability of recovering in home isolation set to: " << probability_of.home_recovery*100 << "%" << std::endl;);
 				break;
 			case 'p':
-				probability_of.post_recovery_paranoia = std::stoi(optarg);
-				DEBUG(std::cout << "Number of simulation days set to: " << probability_of.post_recovery_paranoia << std::endl;);
+				probability_of.post_recovery_paranoia = (float)(std::stoi(optarg))/100;
+				DEBUG(std::cout << "Probability of post recovery paranoia set to: " << probability_of.post_recovery_paranoia*100 << "%" << std::endl;);
 				break;
 			case 'h': // -h or --help
 			case '?': // Unrecognized option
 			default:
 				//PrintHelp();
 				cout << "Help message placeholder" << endl;
-				break;
-		}
+				return 0;
+		}	
 	}
-*/
+	local_debugging_enabled ? debugging_enabled = false : debugging_enabled = true;
+
 	Population population = Population(total_population, incubation_period, initial_number_of_sick,
 									   is_infectious_since_day, average_daily_interactions, hospital_capacity);
 	population.day = 0;
@@ -512,11 +516,9 @@ int main(int argc, char* argv[]) {
 		 * anyone and either stay home or try to get admitted into the hospital to get treatment*/
 		population.IllnessAdvances(local_debugging_enabled);
 
-
 		debugging_enabled = local_debugging_enabled;
 		DEBUG(population.Report(););
 		unsigned int c = population.day-1;
-		Population temp = population;
 		archive[c] = new Population(0,0,0,0,0,0);
 		*archive[c] = population;
 		--number_of_simulation_days;
