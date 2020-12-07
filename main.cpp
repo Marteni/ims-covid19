@@ -38,13 +38,6 @@ float percentageFraction(){
    return (float)(min(rand() % 10001, 10000))/(float)10000;
 }
 
-bool is_number(const std::string& s)
-{
-	std::string::const_iterator it = s.begin();
-	while (it != s.end() && std::isdigit(*it)) ++it;
-	return !s.empty() && it == s.end();
-}
-
 class Population {
 public:
 	unsigned int day;
@@ -532,7 +525,7 @@ int main(int argc, char* argv[]) {
 		}	
 	}
 	local_debugging_enabled ? debugging_enabled = false : debugging_enabled = true;
-	
+
 	incubating = new unsigned int[incubation_period];
 	incubating[0] = initial_number_of_sick;
 	for (unsigned int i = 1; i < incubation_period; i++){

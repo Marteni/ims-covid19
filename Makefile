@@ -12,7 +12,7 @@ graph-only:
 				'' using 1:7 title 'Severely symptomatic' with lines linestyle 6";
 
 
-graph: data.dat
+run: data.dat
 	gnuplot -e "set terminal png size 1280,720; \
 			set output 'graph.png'; \
 			plot 'data.dat' using 1:2 title 'Total sick cases' with lines linestyle 1,\
