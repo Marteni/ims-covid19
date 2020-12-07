@@ -21,15 +21,14 @@ bool debugging_enabled = false;
 unsigned int* incubating;
 
 struct probabilities_t {
-	float getting_sick = 0.25;
-	float healthy_staying_home = 0.50;
-	float mild_symptoms = 0.70;
-	float ms_staying_home = 0.25;
+	float getting_sick = 0.0;
+	float healthy_staying_home = 0.0;
+	float mild_symptoms = 0.0;
+	float ms_staying_home = 0.0;
 
 	float hospital_recovery = 0.0;
 	float hospital_death = 0.0;
 	float home_recovery = 0.0;
-	//float home_death = 0.0;
 
 	float post_recovery_paranoia = 0.5;
 } probability_of;
@@ -76,7 +75,10 @@ public:
 		this->available_hospital_beds = number_of_hospital_beds;
 		this->asymptomatic_in_public = initial_number_of_sick;
 	}
-	
+
+	/* Simulates the spread of infection between people in public
+	 * - Gets all the people moving around the public and randomly composes groups simulating encounters
+	 * - If an infectious person is in the group all the healthy people have a chance to catch the disease */
 	void CalculateInteractions(bool local_debug_out_enabled = false) {
 		local_debug_out_enabled ? debugging_enabled = true : debugging_enabled = false;
 
@@ -172,6 +174,10 @@ public:
 		local_debug_out_enabled ? debugging_enabled = false : debugging_enabled = true;
 	}
 
+	/* Hospitals take action
+	 * - Cure, lose or keep each patient for another day of treatment
+	 * - Cured and lost patients free up beds
+	 * - Admit people from ss_waiting_for_bed until the capacity is filled */
 	void Hospital(bool local_debug_out_enabled = false){
 		local_debug_out_enabled ? debugging_enabled = true : debugging_enabled = false;
 		DEBUG(cout << "Hospital events: " << endl;);
@@ -233,6 +239,10 @@ public:
 		local_debug_out_enabled ? debugging_enabled = false : debugging_enabled = true;
 	}
 
+	/* People in self-quarantine are evaluated
+	 * - Some die
+	 * - Some recover and return to public
+	 * - Some recognize their need for medical attention and are from the next day start waiting for a hospital bed */
 	void HomeQuarantine(bool local_debug_out_enabled = false){
 		local_debug_out_enabled ? debugging_enabled = true : debugging_enabled = false;
 
@@ -276,6 +286,9 @@ public:
 		local_debug_out_enabled ? debugging_enabled = false : debugging_enabled = true;
 	}
 
+	/* After each day the incubating in incubation period advance to the next day.
+	 * If they're past the incubation period, the next day they don't meet with
+	 * anyone and either stay home or try to get admitted into the hospital to get treatment */
 	void IllnessAdvances(bool local_debug_out_enabled = false){
 		local_debug_out_enabled ? debugging_enabled = true : debugging_enabled = false;
 
@@ -355,17 +368,55 @@ public:
 
 };
 
+void PrintHelp(){
+	cout << "========== Help message for infection progress simulator ==========" << endl
+		 << " Arguments:" << endl
+		 << "   - simDays              Simulation length in days" << endl
+		 << "   - population           Total population" << endl
+		 << "   - initSick             Number of sick people on the first simulation day" << endl
+		 << "   - incubPeriod          Incubation period (after which people develop mild or severe symptoms)" << endl
+		 << "   - infectSince          Number of incubation days passed for the person to be infectious" << endl
+		 << "   - avgDailyInter        Number of random people that meet every day" << endl
+		 << "   - hospCap              Total number of hospital beds available" << endl
+		 << "   - CgetSick             Chance of getting infected after meeting an infectious person (in %)" << endl
+		 << "   - ChealthyAtHome       Chance of staying at home as a precaution after meeting an infectious person (in %)" << endl
+		 << "   - CmildSympt           Chance of developing mild symptoms after the incubation period (in %)" << endl
+		 << "   - CmildSymAtHome       Chance of staying at home when having mild symptoms (in %)" << endl
+		 << "   - ChospitalRec         Chance of recovery when hospitalized (in %)" << endl
+		 << "   - ChospitalDeath       Chance of dying when hospitalized (in %)" << endl
+		 << "   - ChomeRec             Chance of recovering in home isolation (in %)" << endl
+		 << "   - Cprp                 Chance of post recovery paranoia (staying at home until the end of the simulation) (in %)" << endl
+		 << "  When an argument is not used it is All arguments have to have a whole positive number as a value." << endl
+		 << endl
+		 << " Chances deduced from chance arguments:" << endl
+	  	 << "   * 100% - CgetSick%" << endl
+	  	 << "	          -> Chance of staying healthy after meeting an infectious person" << endl
+	  	 << "   * 100% - ChealthyAtHome%" << endl
+	  	 << "	          -> Chance of staying in public after meeting an infectious person" << endl
+	  	 << "   * 100% - CmildSympt%" << endl
+	  	 << "	          -> Chance of developing severe symptoms after the incubation periodand going to the hospital" << endl
+	  	 << "   * 100% - CmildSymAtHome%" << endl
+	  	 << "	          -> Chance of staying in public after developing mild symptoms" << endl
+	  	 << "   * 100% - ChospitalRec% - ChospitalDeath%" << endl
+	  	 << "	          -> Chance of staying healthy after meeting an infectious person" << endl
+	  	 << "   * 100% - ChomeRec%" << endl
+	  	 << "	          -> Chance of developing severe symptoms at home and going to the hospital" << endl
+	  	 << "   * 100% - Cprp%" << endl
+	  	 << "	          -> Chance of staying in public after recovering" << endl
+	  	 << endl;
+}
+
 int main(int argc, char* argv[]) {
 	bool local_debugging_enabled = false;
 
-	unsigned int number_of_simulation_days = 100;
+	unsigned int number_of_simulation_days = 7;
 
-	unsigned int total_population = 500000;
-	unsigned int initial_number_of_sick = 150; // Number of patients 0
+	unsigned int total_population = 1324277;
+	unsigned int initial_number_of_sick = 6834; // Number of patients 0
 	unsigned int incubation_period = 5; // Number of days before symptoms appear
 	unsigned int is_infectious_since_day = 4; // On which incubation day the person becomes infectious
-	unsigned int average_daily_interactions = 200; // Size of the daily interaction circle
-	unsigned int hospital_capacity = 50000; // Number of total available hospital beds
+	unsigned int average_daily_interactions = 2000; // Size of the daily interaction circle
+	unsigned int hospital_capacity = 836; // Number of total available hospital beds
 
 	incubating = new unsigned int[incubation_period];
 	incubating[0] = initial_number_of_sick;
@@ -378,16 +429,17 @@ int main(int argc, char* argv[]) {
 	probability_of.getting_sick = 0.10;	// Chance of catching it from an infectious person they met
 	probability_of.healthy_staying_home = 0.05; // Chance of prevention by self quarantine
 	probability_of.mild_symptoms = 0.80; // Chance of developing mild symptoms after passing the incubation period (Leaving 20% chance to develop severe symptoms)
-	probability_of.ms_staying_home = 0.50; // Chance of self quarantine after developing mild symptoms (Leaving 50% chance of staying in public)
+	probability_of.ms_staying_home = 0.95; // Chance of self quarantine after developing mild symptoms (Leaving 5% chance of staying in public)
 
 	probability_of.hospital_recovery = 0.90;
-	probability_of.hospital_death = 0.05;
-	// Leaving 20% chance to stay in hospital for another day
+	probability_of.hospital_death = 0.03;
+	// Leaving 7% chance to stay in hospital for another day
 
-	probability_of.home_recovery = 0.60;
+	probability_of.home_recovery = 0.90;
 	// Leaving 60% chance of needing hospitalization
 
-	probability_of.post_recovery_paranoia = 0.10; // Chance of self quarantine after overcoming the illness
+	probability_of.post_recovery_paranoia = 0.15;
+	// Leaving 85% chance of self quarantine after overcoming the illness
 
 	const option long_opts[] = {
 			{"simDays", required_argument, nullptr, 'a'},
@@ -406,7 +458,7 @@ int main(int argc, char* argv[]) {
 			{"ChomeRec", required_argument, nullptr, 'n'},
 			{"Cprp", required_argument, nullptr, 'p'},
 			{"help", no_argument, nullptr, 'h'},
-			{0, no_argument, 0, 0}
+			{nullptr, no_argument, nullptr, 0}
 	};
 	
 	local_debugging_enabled ? debugging_enabled = true : debugging_enabled = false;
@@ -482,8 +534,7 @@ int main(int argc, char* argv[]) {
 			case 'h': // -h or --help
 			case '?': // Unrecognized option
 			default:
-				//PrintHelp();
-				cout << "Help message placeholder" << endl;
+				PrintHelp();
 				return 0;
 		}	
 	}
@@ -497,23 +548,13 @@ int main(int argc, char* argv[]) {
 		++population.day;
 		debugging_enabled = local_debugging_enabled;
 		DEBUG(cout << "----- DAY " << population.day << " -----" << endl;);
+
 		population.CalculateInteractions(local_debugging_enabled);
 
-		/* Hospitals take action
-		 * - Cure, lose or keep each patient for another day of treatment
-		 * - Cured and lost patients free up beds
-		 * - Admit people from ss_waiting_for_bed until the capacity is filled */
 		population.Hospital(local_debugging_enabled);
 
-		/* People in home self-quarantine are evaluated
-		 * - Some die
-		 * - Some recover and return to public
-		 * - Some recognize their need for medical attention and are from the next day start waiting for a hospital bed */
 		population.HomeQuarantine(local_debugging_enabled);
 
-		/* After each day the incubating in incubation period advance to the next day.
-		 * If they're past the incubation period, the next day they don't meet with
-		 * anyone and either stay home or try to get admitted into the hospital to get treatment*/
 		population.IllnessAdvances(local_debugging_enabled);
 
 		debugging_enabled = local_debugging_enabled;
