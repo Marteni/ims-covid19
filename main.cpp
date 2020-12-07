@@ -418,13 +418,6 @@ int main(int argc, char* argv[]) {
 	unsigned int average_daily_interactions = 2000; // Size of the daily interaction circle
 	unsigned int hospital_capacity = 836; // Number of total available hospital beds
 
-	incubating = new unsigned int[incubation_period];
-	incubating[0] = initial_number_of_sick;
-	for (unsigned int i = 1; i < incubation_period; i++){
-		incubating[i] = 0;
-	}
-	const unsigned int n_of_sim_days = number_of_simulation_days;
-	Population* archive[n_of_sim_days];
 
 	probability_of.getting_sick = 0.10;	// Chance of catching it from an infectious person they met
 	probability_of.healthy_staying_home = 0.05; // Chance of prevention by self quarantine
@@ -460,7 +453,7 @@ int main(int argc, char* argv[]) {
 			{"help", no_argument, nullptr, 'h'},
 			{nullptr, no_argument, nullptr, 0}
 	};
-	
+
 	local_debugging_enabled ? debugging_enabled = true : debugging_enabled = false;
 	while (true)
 	{
@@ -539,6 +532,14 @@ int main(int argc, char* argv[]) {
 		}	
 	}
 	local_debugging_enabled ? debugging_enabled = false : debugging_enabled = true;
+	
+	incubating = new unsigned int[incubation_period];
+	incubating[0] = initial_number_of_sick;
+	for (unsigned int i = 1; i < incubation_period; i++){
+		incubating[i] = 0;
+	}
+	const unsigned int n_of_sim_days = number_of_simulation_days;
+	Population* archive[n_of_sim_days];
 
 	Population population = Population(total_population, incubation_period, initial_number_of_sick,
 									   is_infectious_since_day, average_daily_interactions, hospital_capacity);
@@ -551,11 +552,11 @@ int main(int argc, char* argv[]) {
 
 		population.CalculateInteractions(local_debugging_enabled);
 
-		population.Hospital(local_debugging_enabled);
-
 		population.HomeQuarantine(local_debugging_enabled);
 
 		population.IllnessAdvances(local_debugging_enabled);
+
+		population.Hospital(local_debugging_enabled);
 
 		debugging_enabled = local_debugging_enabled;
 		DEBUG(population.Report(););
